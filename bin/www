@@ -7,12 +7,14 @@
 var app = require('../app');
 var debug = require('debug')('feature-flags-tutorial:server');
 var http = require('http');
+const { connect, StringCodec } = require("nats");
+const sc = StringCodec();
 
 /**
  * Get port from environment and store in Express.
  */
 
-var port = normalizePort(process.env.PORT || '3000');
+var port = normalizePort(process.env.PORT || '9999');
 app.set('port', port);
 
 /**
@@ -81,10 +83,23 @@ function onError(error) {
  * Event listener for HTTP server "listening" event.
  */
 
+async function subscribe() {
+  const nc = await connect({ servers: "demo.nats.io:4222" });
+  const sub = nc.subscribe("hello");
+  console.log(`subscription running: ${sub}`);
+  (async () => {
+    for await (const m of sub) {
+      console.log(`[${sub.getProcessed()}]: ${sc.decode(m.data)}`);
+    }
+    console.log("subscription closed");
+  })();
+}
+
 function onListening() {
   var addr = server.address();
   var bind = typeof addr === 'string'
     ? 'pipe ' + addr
     : 'port ' + addr.port;
   debug('Listening on ' + bind);
+  subscribe();
 }
